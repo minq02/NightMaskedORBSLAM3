@@ -21,7 +21,7 @@ Standard ORB-SLAM3 installation often conflicts with ROS 2 on Ubuntu 22.04 due t
 ### 1. Setup Workspace
 Create a dedicated workspace to keep dependencies isolated.
 
-\`\`\`bash
+```bash
 # Create directory structure
 mkdir -p ~/MinKyu/install
 mkdir -p ~/MinKyu/src
@@ -29,24 +29,24 @@ mkdir -p ~/MinKyu/src
 # Set environment variables for the build process
 export MINKYU_ROOT=~/MinKyu
 export INSTALL_DIR=$MINKYU_ROOT/install
-\`\`\`
+```
 
 ### 2. Install System Tools
 Install basic compilation tools and Python dependencies.
 
-\`\`\`bash
+```bash
 sudo apt update
-sudo apt install -y build-essential cmake git pkg-config \
-    libavcodec-dev libavformat-dev libswscale-dev \
-    python3-dev python3-numpy libtbb2 libtbb-dev libjpeg-dev \
-    libpng-dev libtiff-dev libglew-dev libboost-all-dev \
+sudo apt install -y build-essential cmake git pkg-config 
+    libavcodec-dev libavformat-dev libswscale-dev 
+    python3-dev python3-numpy libtbb2 libtbb-dev libjpeg-dev 
+    libpng-dev libtiff-dev libglew-dev libboost-all-dev 
     libssl-dev libeigen3-dev libgtk2.0-dev
-\`\`\`
+```
 
 ### 3. Install OpenCV 4.6.0 (Locally)
-We build OpenCV from source to ensure C++ headers are available (which \`pip install\` does not provide).
+We build OpenCV from source to ensure C++ headers are available (which `pip install` does not provide).
 
-\`\`\`bash
+```bash
 cd $MINKYU_ROOT/src
 git clone https://github.com/opencv/opencv.git
 cd opencv
@@ -54,38 +54,38 @@ git checkout 4.6.0
 mkdir build && cd build
 
 # Configure CMake to install to ~/MinKyu/install
-cmake -D CMAKE_BUILD_TYPE=Release \
-      -D WITH_CUDA=OFF \
-      -D CMAKE_INSTALL_PREFIX=$INSTALL_DIR \
+cmake -D CMAKE_BUILD_TYPE=Release 
+      -D WITH_CUDA=OFF 
+      -D CMAKE_INSTALL_PREFIX=$INSTALL_DIR 
       ..
 
 make -j4
 make install
-\`\`\`
+```
 
 ### 4. Install Pangolin (Locally)
 **Note:** Python bindings are disabled to prevent build errors with Python 3.12 on Ubuntu 22.04.
 
-\`\`\`bash
+```bash
 cd $MINKYU_ROOT/src
 git clone https://github.com/stevenlovegrove/Pangolin.git
 cd Pangolin
 mkdir build && cd build
 
 # Configure CMake to install to ~/MinKyu/install
-cmake .. \
-    -D CMAKE_BUILD_TYPE=Release \
-    -D CMAKE_INSTALL_PREFIX=$INSTALL_DIR \
+cmake .. 
+    -D CMAKE_BUILD_TYPE=Release 
+    -D CMAKE_INSTALL_PREFIX=$INSTALL_DIR 
     -D BUILD_PANGOLIN_PYTHON=OFF
 
 make -j4
 make install
-\`\`\`
+```
 
 ### 5. Build Night-Masked ORB-SLAM3
 Clone this repository and compile it, linking against the local dependencies we just created.
 
-\`\`\`bash
+```bash
 cd $MINKYU_ROOT
 git clone https://github.com/minq02/NightMaskedORBSLAM3.git
 cd NightMaskedORBSLAM3
@@ -100,7 +100,7 @@ sed -i 's/++11/++14/g' CMakeLists.txt
 
 # Compile
 ./build.sh
-\`\`\`
+```
 
 ---
 
@@ -109,24 +109,24 @@ sed -i 's/++11/++14/g' CMakeLists.txt
 Because libraries are installed in a custom folder, you must tell the terminal where to find them **every time you open a new terminal**.
 
 ### 1. Export Library Path
-\`\`\`bash
+```bash
 export LD_LIBRARY_PATH=~/MinKyu/install/lib:$LD_LIBRARY_PATH
-\`\`\`
+```
 
 ### 2. Enable Display (For Shared/Remote Machines)
 If the GUI window crashes immediately, run this command to allow the terminal to access the display:
-\`\`\`bash
+```bash
 xhost +
-\`\`\`
+```
 
 ### 3. Run Monocular SLAM (EuRoC Example)
-\`\`\`bash
-./Examples/Monocular/mono_euroc \
-    ./Vocabulary/ORBvoc.txt \
-    ./Examples/Monocular/EuRoC.yaml \
-    PATH_TO_YOUR_DATASET_FOLDER \
+```bash
+./Examples/Monocular/mono_euroc 
+    ./Vocabulary/ORBvoc.txt 
+    ./Examples/Monocular/EuRoC.yaml 
+    PATH_TO_YOUR_DATASET_FOLDER 
     ./Examples/Monocular/EuRoC_TimeStamps/MH01.txt
-\`\`\`
+```
 
 ---
 
@@ -134,13 +134,12 @@ xhost +
 
 **1. "error while loading shared libraries: libpango_windowing.so"**
 * **Cause:** Linux doesn't know where the custom libraries are.
-* **Fix:** Run \`export LD_LIBRARY_PATH=~/MinKyu/install/lib:$LD_LIBRARY_PATH\`
+* **Fix:** Run `export LD_LIBRARY_PATH=~/MinKyu/install/lib:$LD_LIBRARY_PATH`
 
 **2. "Pangolin X11: Failed to open X display"**
 * **Cause:** Security permissions blocking the window.
-* **Fix:** Run \`xhost +\` before starting the program.
+* **Fix:** Run `xhost +` before starting the program.
 
 **3. "Segment Fault (core dumped)" immediately**
 * **Cause:** Often caused by incorrect path to the Vocabulary file.
-* **Fix:** Ensure \`./Vocabulary/ORBvoc.txt\` exists and is extracted (not \`.tar.gz\`).
-EOF
+* **Fix:** Ensure `./Vocabulary/ORBvoc.txt` exists and is extracted (not `.tar.gz`).
