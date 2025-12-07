@@ -4,6 +4,14 @@
 
 This repository contains a modified version of **ORB-SLAM3**, optimized for operation in night-time and adverse lighting conditions. It implements a **Glare Masking** preprocessing pipeline to reject unreliable features caused by streetlights and reflections, significantly reducing trajectory drift compared to the standard baseline.
 
+### Visual Overview
+- Algorithm flow from input to output  
+  ![Flow diagram](./media/flow_diagram.png)
+- Original vs. enhanced vs. masked comparison  
+  ![Image comparison](./media/comparison.png)
+- RMSE and trajectory comparison (ORB-SLAM3 vs. enhanced vs. enhanced + masking)  
+  ![Results](./media/results.png)
+
 ## System Requirements
 * **OS:** Ubuntu 22.04 (Jammy Jellyfish)
 * **Compiler:** GCC 11 (C++14 standard required)
