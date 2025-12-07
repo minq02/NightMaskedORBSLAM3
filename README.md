@@ -1,5 +1,7 @@
 # Night-Masked ORB-SLAM3
 
+![ORB example](./media/example.gif)
+
 **A Robust Visual SLAM System for Low-Light Environments**
 
 This repository contains a modified version of **ORB-SLAM3**, optimized for operation in night-time and adverse lighting conditions. It implements a **Glare Masking** preprocessing pipeline to reject unreliable features caused by streetlights and reflections, significantly reducing trajectory drift compared to the standard baseline.
