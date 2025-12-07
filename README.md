@@ -1,18 +1,17 @@
-cat << 'EOF' > README.md
 # Night-Masked ORB-SLAM3
 
 **A Robust Visual SLAM System for Low-Light Environments**
 
 This repository contains a modified version of **ORB-SLAM3**, optimized for operation in night-time and adverse lighting conditions. It implements a **Glare Masking** preprocessing pipeline to reject unreliable features caused by streetlights and reflections, significantly reducing trajectory drift compared to the standard baseline.
 
-## ⚙️ System Requirements
+## System Requirements
 * **OS:** Ubuntu 22.04 (Jammy Jellyfish)
 * **Compiler:** GCC 11 (C++14 standard required)
 * **ROS Compatibility:** ROS 2 Humble (Safe to install alongside)
 
 ---
 
-## 🛠️ Installation Guide (Safe Mode)
+## Installation Guide (Safe Mode)
 
 Standard ORB-SLAM3 installation often conflicts with ROS 2 on Ubuntu 22.04 due to dependency mismatches (OpenCV 4 vs. OpenCV 3). 
 
@@ -104,7 +103,7 @@ sed -i 's/++11/++14/g' CMakeLists.txt
 
 ---
 
-## 🏃 How to Run
+## How to Run
 
 Because libraries are installed in a custom folder, you must tell the terminal where to find them **every time you open a new terminal**.
 
@@ -130,7 +129,7 @@ xhost +
 
 ---
 
-## ⚠️ Troubleshooting
+## Troubleshooting
 
 **1. "error while loading shared libraries: libpango_windowing.so"**
 * **Cause:** Linux doesn't know where the custom libraries are.
