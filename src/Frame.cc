@@ -286,7 +286,13 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 }
 
 
-Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, GeometricCamera* pCamera, cv::Mat &distCoef, const float &bf, const float &thDepth, Frame* pPrevF, const IMU::Calib &ImuCalib)
+// Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, GeometricCamera* pCamera, cv::Mat &distCoef, const float &bf, const float &thDepth, Frame* pPrevF, const IMU::Calib &ImuCalib)
+//     :mpcpi(NULL),mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
+//      mTimeStamp(timeStamp), mK(static_cast<Pinhole*>(pCamera)->toK()), mK_(static_cast<Pinhole*>(pCamera)->toK_()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
+//      mImuCalib(ImuCalib), mpImuPreintegrated(NULL),mpPrevFrame(pPrevF),mpImuPreintegratedFrame(NULL), mpReferenceKF(static_cast<KeyFrame*>(NULL)), mbIsSet(false), mbImuPreintegrated(false), mpCamera(pCamera),
+//      mpCamera2(nullptr), mbHasPose(false), mbHasVelocity(false)
+// Added 'const cv::Mat &mask' to arguments
+Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, GeometricCamera* pCamera, cv::Mat &distCoef, const float &bf, const float &thDepth, Frame* pPrevF, const IMU::Calib &ImuCalib, const cv::Mat &mask)
     :mpcpi(NULL),mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(static_cast<Pinhole*>(pCamera)->toK()), mK_(static_cast<Pinhole*>(pCamera)->toK_()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
      mImuCalib(ImuCalib), mpImuPreintegrated(NULL),mpPrevFrame(pPrevF),mpImuPreintegratedFrame(NULL), mpReferenceKF(static_cast<KeyFrame*>(NULL)), mbIsSet(false), mbImuPreintegrated(false), mpCamera(pCamera),
@@ -315,6 +321,46 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     mTimeORB_Ext = std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(time_EndExtORB - time_StartExtORB).count();
 #endif
 
+
+    // N = mvKeys.size();
+    // if(mvKeys.empty())
+    //     return;
+
+    // UndistortKeyPoints();
+
+    // --- MASKING LOGIC START ---
+    if(!mask.empty())
+    {
+        vector<cv::KeyPoint> vKeysGood;
+        cv::Mat descriptorsGood;
+        // Reserve to avoid reallocations
+        vKeysGood.reserve(mvKeys.size());
+        descriptorsGood.reserve(mDescriptors.rows);
+
+        for(size_t i=0; i<mvKeys.size(); i++)
+        {
+            const cv::Point2f &pt = mvKeys[i].pt;
+            
+            // Check bounds (safety)
+            if(pt.x >= 0 && pt.x < mask.cols && pt.y >= 0 && pt.y < mask.rows)
+            {
+                // If mask pixel > 127 (white/gray), it is invalid. SKIP IT.
+                if(mask.at<uchar>((int)pt.y, (int)pt.x) > 127) 
+                {
+                    continue; 
+                }
+            }
+            
+            // Keep valid keypoint
+            vKeysGood.push_back(mvKeys[i]);
+            descriptorsGood.push_back(mDescriptors.row(i));
+        }
+
+        // Update the frame's features
+        mvKeys = vKeysGood;
+        mDescriptors = descriptorsGood;
+    }
+    // --- MASKING LOGIC END ---
 
     N = mvKeys.size();
     if(mvKeys.empty())

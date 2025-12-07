@@ -32,24 +32,20 @@ void LoadImages(const string &strImagePath, const string &strPathTimes,
 
 int main(int argc, char **argv)
 {  
-    if(argc < 5)
-    {
-        cerr << endl << "Usage: ./mono_euroc path_to_vocabulary path_to_settings path_to_sequence_folder_1 path_to_times_file_1 (path_to_image_folder_2 path_to_times_file_2 ... path_to_image_folder_N path_to_times_file_N) (trajectory_file_name)" << endl;
+    // 1. Modified Argument Check
+    if(argc != 6) {
+        cerr << endl << "Usage: ./mono_euroc path_to_vocabulary path_to_settings path_to_sequence path_to_masks path_to_times" << endl;
         return 1;
     }
 
-    const int num_seq = (argc-3)/2;
-    cout << "num_seq = " << num_seq << endl;
-    bool bFileName= (((argc-3) % 2) == 1);
-    string file_name;
-    if (bFileName)
-    {
-        file_name = string(argv[argc-1]);
-        cout << "file name: " << file_name << endl;
-    }
+    // Capture the Mask Directory Path (Argument 4)
+    string strMaskPath = string(argv[4]);
 
+    // Simplify logic for single sequence (Standard for class projects)
+    // We assume standard usage: exe vocab settings seq masks times
+    
     // Load all sequences:
-    int seq;
+    int num_seq = 1; 
     vector< vector<string> > vstrImageFilenames;
     vector< vector<double> > vTimestampsCam;
     vector<int> nImages;
@@ -59,10 +55,15 @@ int main(int argc, char **argv)
     nImages.resize(num_seq);
 
     int tot_images = 0;
-    for (seq = 0; seq<num_seq; seq++)
+    for (int seq = 0; seq<num_seq; seq++)
     {
         cout << "Loading images for sequence " << seq << "...";
-        LoadImages(string(argv[(2*seq)+3]) + "/mav0/cam0/data", string(argv[(2*seq)+4]), vstrImageFilenames[seq], vTimestampsCam[seq]);
+        
+        // Load Images (Arg 3) and Times (Arg 5)
+        // argv[3] is Sequence Path, argv[5] is Times Path
+        // LoadImages(string(argv[3]) + "/mav0/cam0/data", string(argv[5]), vstrImageFilenames[seq], vTimestampsCam[seq]);
+        LoadImages(string(argv[3]), string(argv[5]), vstrImageFilenames[seq], vTimestampsCam[seq]);
+        
         cout << "LOADED!" << endl;
 
         nImages[seq] = vstrImageFilenames[seq].size();
@@ -76,9 +77,9 @@ int main(int argc, char **argv)
     cout << endl << "-------" << endl;
     cout.precision(17);
 
-
     int fps = 20;
     float dT = 1.f/fps;
+    
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
     ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::MONOCULAR, true);
     float imageScale = SLAM.GetImageScale();
@@ -86,17 +87,15 @@ int main(int argc, char **argv)
     double t_resize = 0.f;
     double t_track = 0.f;
 
-    for (seq = 0; seq<num_seq; seq++)
+    for (int seq = 0; seq<num_seq; seq++)
     {
-
         // Main loop
         cv::Mat im;
         int proccIm = 0;
         for(int ni=0; ni<nImages[seq]; ni++, proccIm++)
         {
-
             // Read image from file
-            im = cv::imread(vstrImageFilenames[seq][ni],cv::IMREAD_UNCHANGED); //,CV_LOAD_IMAGE_UNCHANGED);
+            im = cv::imread(vstrImageFilenames[seq][ni],cv::IMREAD_UNCHANGED); 
             double tframe = vTimestampsCam[seq][ni];
 
             if(im.empty())
@@ -105,6 +104,25 @@ int main(int argc, char **argv)
                      <<  vstrImageFilenames[seq][ni] << endl;
                 return 1;
             }
+
+            // --- MASK LOADING LOGIC ---
+            // 1. Extract just the filename (e.g., "1403636579763555584.png") from the full path
+            string fullPath = vstrImageFilenames[seq][ni];
+            string filename = fullPath.substr(fullPath.find_last_of("/\\") + 1);
+            
+            // 2. Construct full mask path
+            string maskFile = strMaskPath + "/" + filename;
+            
+            // 3. Read Mask
+            cv::Mat mask = cv::imread(maskFile, cv::IMREAD_GRAYSCALE);
+            
+            // 4. Safety Check: If mask is missing or empty, create a blank (all valid) mask
+            if(mask.empty())
+            {
+                // cout << "Warning: No mask found for " << filename << ". Assuming all valid." << endl;
+                mask = cv::Mat::zeros(im.size(), CV_8UC1); 
+            }
+            // --------------------------
 
             if(imageScale != 1.f)
             {
@@ -118,6 +136,11 @@ int main(int argc, char **argv)
                 int width = im.cols * imageScale;
                 int height = im.rows * imageScale;
                 cv::resize(im, im, cv::Size(width, height));
+                
+                // Also resize mask if image was resized!
+                if(!mask.empty())
+                    cv::resize(mask, mask, cv::Size(width, height), 0, 0, cv::INTER_NEAREST); // Nearest neighbor for masks to keep 0/255 values
+                
 #ifdef REGISTER_TIMES
     #ifdef COMPILEDWITHC11
                 std::chrono::steady_clock::time_point t_End_Resize = std::chrono::steady_clock::now();
@@ -135,9 +158,8 @@ int main(int argc, char **argv)
             std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
     #endif
 
-            // Pass the image to the SLAM system
-            // cout << "tframe = " << tframe << endl;
-            SLAM.TrackMonocular(im,tframe); // TODO change to monocular_inertial
+            // Pass the image AND MASK to the SLAM system
+            SLAM.TrackMonocular(im, tframe, mask); 
 
     #ifdef COMPILEDWITHC11
             std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
@@ -161,12 +183,8 @@ int main(int argc, char **argv)
             else if(ni>0)
                 T = tframe-vTimestampsCam[seq][ni-1];
 
-            //std::cout << "T: " << T << std::endl;
-            //std::cout << "ttrack: " << ttrack << std::endl;
-
             if(ttrack<T) {
-                //std::cout << "usleep: " << (dT-ttrack) << std::endl;
-                usleep((T-ttrack)*1e6); // 1e6
+                usleep((T-ttrack)*1e6);
             }
         }
 
@@ -176,29 +194,16 @@ int main(int argc, char **argv)
             string f_file_submap =  "./SubMaps/f_SubMap_" + std::to_string(seq) + ".txt";
             SLAM.SaveTrajectoryEuRoC(f_file_submap);
             SLAM.SaveKeyFrameTrajectoryEuRoC(kf_file_submap);
-
             cout << "Changing the dataset" << endl;
-
             SLAM.ChangeDataset();
         }
-
     }
     // Stop all threads
     SLAM.Shutdown();
 
     // Save camera trajectory
-    if (bFileName)
-    {
-        const string kf_file =  "kf_" + string(argv[argc-1]) + ".txt";
-        const string f_file =  "f_" + string(argv[argc-1]) + ".txt";
-        SLAM.SaveTrajectoryEuRoC(f_file);
-        SLAM.SaveKeyFrameTrajectoryEuRoC(kf_file);
-    }
-    else
-    {
-        SLAM.SaveTrajectoryEuRoC("CameraTrajectory.txt");
-        SLAM.SaveKeyFrameTrajectoryEuRoC("KeyFrameTrajectory.txt");
-    }
+    SLAM.SaveTrajectoryEuRoC("CameraTrajectory.txt");
+    SLAM.SaveKeyFrameTrajectoryEuRoC("KeyFrameTrajectory.txt");
 
     return 0;
 }
@@ -221,8 +226,8 @@ void LoadImages(const string &strImagePath, const string &strPathTimes,
             vstrImages.push_back(strImagePath + "/" + ss.str() + ".png");
             double t;
             ss >> t;
-            vTimeStamps.push_back(t*1e-9);
-
+            // vTimeStamps.push_back(t*1e-10);
+            vTimeStamps.push_back(t*1e-6);
         }
     }
 }
